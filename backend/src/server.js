@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const auth = require('./middleware/auth');
-const { startCron } = require('./services/cron');
 
 const app = express();
 
@@ -27,6 +26,16 @@ app.post('/auth/verify', (req, res) => {
   }
 });
 
+// Vercel cron endpoint — secured with CRON_SECRET
+app.post('/cron/scrape', async (req, res) => {
+  if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { runAllScrapes } = require('./services/cron');
+  res.json({ message: 'Scrape started' });
+  runAllScrapes().catch(console.error);
+});
+
 // All API routes behind auth
 app.use('/api/accounts', auth, require('./routes/accounts'));
 app.use('/api/competitors', auth, require('./routes/competitors'));
@@ -39,8 +48,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  startCron();
-});
+// Local dev
+if (require.main === module) {
+  const { startCron } = require('./services/cron');
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    startCron();
+  });
+}
+
+module.exports = app;
