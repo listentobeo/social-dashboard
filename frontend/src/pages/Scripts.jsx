@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAccounts } from '../contexts/AccountContext';
 import { api } from '../lib/api';
-import { Mic, Sparkles, Trash2, ChevronDown, ChevronUp, Copy, Check, Wifi, WifiOff } from 'lucide-react';
+import { Mic, Sparkles, Trash2, ChevronDown, ChevronUp, Copy, Check, Wifi, WifiOff, Download } from 'lucide-react';
 
 const WHISPER_URL = 'http://localhost:5001';
 
@@ -149,9 +149,21 @@ export default function Scripts() {
           <h1 className="text-white text-2xl font-bold">Script Intelligence</h1>
           <p className="text-gray-500 text-sm mt-0.5">Transcribe videos, extract hooks, generate scripts in your voice</p>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${whisperOnline ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {whisperOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {whisperOnline ? 'Whisper Online' : 'Whisper Offline'}
+        <div className="flex items-center gap-2">
+          <a
+            href={`${import.meta.env.VITE_API_URL || ''}/api/scripts/export/${activeAccount?.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-dark-700 text-gray-400 hover:text-white transition-colors"
+            title="Export voice profile for use with Claude Code"
+          >
+            <Download size={12} />
+            Export for Claude
+          </a>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${whisperOnline ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            {whisperOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+            {whisperOnline ? 'Whisper Online' : 'Whisper Offline'}
+          </div>
         </div>
       </div>
 

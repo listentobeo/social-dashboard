@@ -1,9 +1,10 @@
 const router = require('express').Router();
 const pool = require('../db/client');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-function getClaude() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getGemini() {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  return genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
 }
 
 // GET posts for an account that have a video URL (transcribable)
@@ -131,13 +132,9 @@ FORMAT — output this exactly, nothing else:
 **ESTIMATED DURATION:** X seconds`;
 
   try {
-    const claude = getClaude();
-    const message = await claude.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    const fullScript = message.content[0].text;
+    const model = getGemini();
+    const result = await model.generateContent(prompt);
+    const fullScript = result.response.text();
 
     // Save generated script
     const { rows: [saved] } = await pool.query(
@@ -163,6 +160,40 @@ router.get('/generated/:accountId', async (req, res) => {
     [req.params.accountId]
   );
   res.json(rows);
+});
+
+// GET voice profile export (for use with external AI like Claude Code)
+router.get('/export/:accountId', async (req, res) => {
+  const { rows: scripts } = await pool.query(`
+    SELECT ps.hook, ps.hook_type, ps.tone, ps.key_phrases, ps.body_structure, ps.cta,
+           ps.transcript, ps.duration_seconds, ps.content_format,
+           p.engagement_rate, p.caption
+    FROM post_scripts ps
+    JOIN posts p ON ps.post_id = p.id
+    WHERE p.account_id = $1
+    ORDER BY p.engagement_rate DESC NULLS LAST
+    LIMIT 10
+  `, [req.params.accountId]);
+
+  const lines = scripts.map((s, i) => {
+    const phrases = Array.isArray(s.key_phrases) ? s.key_phrases : JSON.parse(s.key_phrases || '[]');
+    return [
+      `--- Video ${i + 1} (${s.content_format || 'short'}, ${s.duration_seconds || 0}s, ${parseFloat(s.engagement_rate || 0).toFixed(2)}% eng) ---`,
+      `Caption: ${s.caption || '(none)'}`,
+      `Hook: "${s.hook}" [${s.hook_type}]`,
+      `Tone: ${s.tone}`,
+      `Body: ${s.body_structure}`,
+      `CTA: ${s.cta}`,
+      `Key phrases: ${phrases.join(', ')}`,
+      s.transcript ? `Transcript:\n${s.transcript}` : '',
+    ].filter(Boolean).join('\n');
+  });
+
+  const text = lines.length > 0
+    ? `# Voice Profile Export\n\n${lines.join('\n\n')}`
+    : '(No transcribed posts yet)';
+
+  res.type('text/plain').send(text);
 });
 
 // DELETE generated script
