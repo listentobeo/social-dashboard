@@ -20,10 +20,15 @@ router.post('/', async (req, res) => {
       [platform, handle.replace('@', '').trim(), notes || null]
     );
 
-    // Auto-trigger first scrape (await so Vercel doesn't kill it before Apify run starts)
-    scrapeCompetitor(rows[0]).catch(err => console.error('[AUTO-SCRAPE]', err.message));
+    // Auto-trigger first scrape — await so Vercel doesn't kill before Apify call completes
+    let runId = null;
+    try {
+      runId = await scrapeCompetitor(rows[0]);
+    } catch (err) {
+      console.error('[AUTO-SCRAPE]', err.message);
+    }
 
-    res.json(rows[0]);
+    res.json({ ...rows[0], runId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

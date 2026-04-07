@@ -7,7 +7,7 @@ function getClient() {
 }
 
 async function analyzePerformance(accountData, posts, competitors = []) {
-  const model = getClient().getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = getClient().getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const topPosts = [...posts]
     .sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0))
@@ -70,7 +70,7 @@ Be brutally honest and specific. No generic advice.`;
 }
 
 async function analyzeCompetitor(competitorData, competitorPosts, myPosts = []) {
-  const model = getClient().getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = getClient().getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   const theirTop = [...competitorPosts]
     .sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0))

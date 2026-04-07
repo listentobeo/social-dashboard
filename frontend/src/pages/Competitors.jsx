@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAccounts } from '../contexts/AccountContext';
 import { api } from '../lib/api';
-import { Plus, Trash2, RefreshCw, Brain, Users, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { PlatformBadge } from '../components/AccountSwitcher';
 import PostCard from '../components/PostCard';
 
@@ -11,14 +11,24 @@ export default function Competitors() {
   const [expanded, setExpanded] = useState(null);
   const [expandedData, setExpandedData] = useState({});
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ platform: 'instagram', handle: '', notes: '' });
+  const [form, setForm] = useState({ platform: activeAccount?.platform || 'instagram', handle: '', notes: '' });
   const [adding, setAdding] = useState(false);
   const [analyzing, setAnalyzing] = useState(null);
   const [insights, setInsights] = useState({});
   const [loading, setLoading] = useState(false);
+  const [scraping, setScraping] = useState({}); // { [competitorId]: 'polling' | 'done' | 'failed' }
+  const pollRefs = useRef({});
+
+  // Reset form platform when active account changes
+  useEffect(() => {
+    setForm(f => ({ ...f, platform: activeAccount?.platform || 'instagram' }));
+  }, [activeAccount?.platform]);
 
   useEffect(() => {
     fetchCompetitors();
+    return () => {
+      Object.values(pollRefs.current).forEach(clearInterval);
+    };
   }, []);
 
   async function fetchCompetitors() {
@@ -30,14 +40,52 @@ export default function Competitors() {
     setLoading(false);
   }
 
+  // Filter competitors by active account platform
+  const filteredCompetitors = activeAccount
+    ? competitors.filter(c => c.platform === activeAccount.platform)
+    : competitors;
+
+  function startPolling(runId, competitorId) {
+    setScraping(s => ({ ...s, [competitorId]: 'polling' }));
+    let attempts = 0;
+    const maxAttempts = 20;
+    pollRefs.current[competitorId] = setInterval(async () => {
+      attempts++;
+      try {
+        const result = await api.pollScrapeStatus(runId, 'competitor', competitorId);
+        if (result.done) {
+          clearInterval(pollRefs.current[competitorId]);
+          setScraping(s => ({ ...s, [competitorId]: result.error ? 'failed' : 'done' }));
+          if (!result.error) {
+            // Reload competitor data
+            await fetchCompetitors();
+            setExpandedData(d => { const copy = { ...d }; delete copy[competitorId]; return copy; });
+          }
+          setTimeout(() => setScraping(s => { const c = { ...s }; delete c[competitorId]; return c; }), 3000);
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(pollRefs.current[competitorId]);
+        setScraping(s => ({ ...s, [competitorId]: 'failed' }));
+        setTimeout(() => setScraping(s => { const c = { ...s }; delete c[competitorId]; return c; }), 3000);
+      }
+    }, 15000);
+  }
+
   async function handleAdd(e) {
     e.preventDefault();
     setAdding(true);
     try {
-      await api.addCompetitor(form.platform, form.handle, form.notes);
-      setForm({ platform: 'instagram', handle: '', notes: '' });
+      const result = await api.addCompetitor(form.platform, form.handle, form.notes);
+      setForm(f => ({ ...f, handle: '', notes: '' }));
       setShowAdd(false);
       await fetchCompetitors();
+      // Auto-poll if runId returned
+      if (result.runId && result.id) {
+        startPolling(result.runId, result.id);
+      }
     } catch (err) {
       alert(err.message);
     }
@@ -46,6 +94,7 @@ export default function Competitors() {
 
   async function handleDelete(id) {
     await api.deleteCompetitor(id);
+    clearInterval(pollRefs.current[id]);
     setCompetitors(c => c.filter(x => x.id !== id));
     if (expanded === id) setExpanded(null);
   }
@@ -56,6 +105,15 @@ export default function Competitors() {
     if (!expandedData[id]) {
       const data = await api.getCompetitor(id).catch(() => null);
       if (data) setExpandedData(d => ({ ...d, [id]: data }));
+    }
+  }
+
+  async function handleRefresh(c) {
+    try {
+      const result = await api.scrapeCompetitor(c.id);
+      if (result.runId) startPolling(result.runId, c.id);
+    } catch (err) {
+      console.error('Scrape error:', err);
     }
   }
 
@@ -125,13 +183,15 @@ export default function Competitors() {
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => <div key={i} className="bg-dark-800 border border-dark-600 rounded-2xl h-24 animate-pulse" />)}
         </div>
-      ) : competitors.length === 0 ? (
+      ) : filteredCompetitors.length === 0 ? (
         <div className="bg-dark-800 border border-dark-600 rounded-2xl p-8 text-center text-gray-500">
-          No competitors tracked yet. Add one above.
+          {activeAccount
+            ? `No ${activeAccount.platform} competitors tracked yet. Add one above.`
+            : 'No competitors tracked yet. Add one above.'}
         </div>
       ) : (
         <div className="space-y-3">
-          {competitors.map(c => (
+          {filteredCompetitors.map(c => (
             <div key={c.id} className="bg-dark-800 border border-dark-600 rounded-2xl overflow-hidden">
               {/* Competitor row */}
               <div className="p-4 flex items-center gap-4">
@@ -143,14 +203,20 @@ export default function Competitors() {
                     {parseFloat(c.avg_engagement_rate || 0).toFixed(2)}% engagement
                     {c.notes && ` • ${c.notes}`}
                   </p>
+                  {scraping[c.id] && (
+                    <p className={`text-xs mt-0.5 ${scraping[c.id] === 'polling' ? 'text-yellow-400' : scraping[c.id] === 'done' ? 'text-green-400' : 'text-red-400'}`}>
+                      {scraping[c.id] === 'polling' ? '⬤ Scraping...' : scraping[c.id] === 'done' ? '✓ Updated' : '✗ Failed'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => api.scrapeCompetitor(c.id).catch(console.error)}
-                    className="p-2 text-gray-500 hover:text-white hover:bg-dark-600 rounded-xl transition-colors"
+                    onClick={() => handleRefresh(c)}
+                    disabled={!!scraping[c.id]}
+                    className="p-2 text-gray-500 hover:text-white hover:bg-dark-600 rounded-xl transition-colors disabled:opacity-40"
                     title="Refresh data"
                   >
-                    <RefreshCw size={14} />
+                    <RefreshCw size={14} className={scraping[c.id] === 'polling' ? 'animate-spin' : ''} />
                   </button>
                   <button
                     onClick={() => handleAnalyze(c.id)}
@@ -189,14 +255,22 @@ export default function Competitors() {
               )}
 
               {/* Expanded posts */}
-              {expanded === c.id && expandedData[c.id] && (
+              {expanded === c.id && (
                 <div className="border-t border-dark-600 p-4">
-                  <h3 className="text-white text-sm font-medium mb-3">Recent Posts</h3>
-                  <div className="space-y-2">
-                    {expandedData[c.id].posts?.slice(0, 5).map(post => (
-                      <PostCard key={post.id} post={post} />
-                    ))}
-                  </div>
+                  <h3 className="text-white text-sm font-medium mb-3">Top Posts</h3>
+                  {expandedData[c.id] ? (
+                    expandedData[c.id].posts?.length > 0 ? (
+                      <div className="space-y-2">
+                        {expandedData[c.id].posts.slice(0, 10).map(post => (
+                          <PostCard key={post.id} post={post} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No posts scraped yet. Hit the refresh button.</p>
+                    )
+                  ) : (
+                    <div className="h-16 animate-pulse bg-dark-700 rounded-xl" />
+                  )}
                 </div>
               )}
             </div>

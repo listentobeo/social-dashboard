@@ -103,15 +103,15 @@ function normalizeProfile(platform, items) {
       };
     }
     case 'tiktok': {
-      // free-tiktok-scraper returns flat dot-notation keys, not nested objects
+      // free-tiktok-scraper returns flat dot-notation keys; no follower data available
       const p = items[0];
       return {
-        display_name: p['authorMeta.name'] || p['authorMeta.nickName'] || p.authorMeta?.name,
-        profile_picture_url: p['authorMeta.avatar'] || p.authorMeta?.avatar,
-        followers_count: p['authorMeta.fans'] || p.authorMeta?.fans || 0,
-        following_count: p['authorMeta.following'] || p.authorMeta?.following || 0,
-        posts_count: p['authorMeta.video'] || p.authorMeta?.video || 0,
-        bio: p['authorMeta.signature'] || p.authorMeta?.signature,
+        display_name: p['authorMeta.name'] || p['authorMeta.nickName'] || null,
+        profile_picture_url: p['authorMeta.avatar'] || null,
+        followers_count: p['authorMeta.fans'] || 0,
+        following_count: 0,
+        posts_count: 0,
+        bio: p['authorMeta.signature'] || null,
       };
     }
     case 'facebook': {
@@ -181,25 +181,31 @@ function normalizePosts(platform, items) {
     case 'tiktok':
       return items
         .filter(p => p.webVideoUrl || p.id)
-        .map(p => ({
-          // free-tiktok-scraper uses flat dot-notation keys; extract video ID from URL
-          platform_post_id: p.id || p.webVideoUrl?.split('/').pop() || null,
-          content_type: 'video',
-          caption: p.text,
-          media_url: p['videoMeta.downloadAddr'] || p.videoMeta?.downloadAddr || null,
-          thumbnail_url: p['videoMeta.coverUrl'] || p.videoMeta?.coverUrl || null,
-          post_url: p.webVideoUrl,
-          likes_count: p.diggCount || 0,
-          comments_count: p.commentCount || 0,
-          shares_count: p.shareCount || 0,
-          saves_count: p.collectCount || p['collectCount'] || 0,
-          views_count: p.playCount || 0,
-          engagement_rate: calcEngagement(
-            p.diggCount, p.commentCount, p.shareCount,
-            p['authorMeta.fans'] || p.authorMeta?.fans || null
-          ),
-          posted_at: safeDate(p.createTimeISO),
-        }));
+        .map(p => {
+          // free-tiktok-scraper: no follower data, use views-based engagement instead
+          const likes = p.diggCount || 0;
+          const comments = p.commentCount || 0;
+          const shares = p.shareCount || 0;
+          const views = p.playCount || 0;
+          const engagementRate = views > 0
+            ? parseFloat((((likes + comments + shares) / views) * 100).toFixed(3))
+            : 0;
+          return {
+            platform_post_id: p.id || p.webVideoUrl?.split('/').pop() || null,
+            content_type: 'video',
+            caption: p.text,
+            media_url: null,
+            thumbnail_url: null,
+            post_url: p.webVideoUrl,
+            likes_count: likes,
+            comments_count: comments,
+            shares_count: shares,
+            saves_count: 0,
+            views_count: views,
+            engagement_rate: engagementRate,
+            posted_at: safeDate(p.createTimeISO),
+          };
+        });
 
     case 'facebook':
       return items
