@@ -14,7 +14,7 @@ const ACTORS = {
 function buildInput(platform, handle, limit = 30) {
   switch (platform) {
     case 'instagram':
-      return { usernames: [handle], resultsLimit: limit };
+      return { usernames: [handle] };
     case 'tiktok':
       return { profiles: [`https://www.tiktok.com/@${handle}`], resultsPerPage: limit };
     case 'facebook':
@@ -153,24 +153,27 @@ function normalizePosts(platform, items) {
   if (!items || items.length === 0) return [];
 
   switch (platform) {
-    case 'instagram':
-      return items
-        .filter(i => i.type === 'Image' || i.type === 'Video' || i.type === 'Sidecar')
-        .map(p => ({
-          platform_post_id: p.id || p.shortCode,
-          content_type: p.type?.toLowerCase() || 'photo',
-          caption: p.caption,
-          media_url: p.displayUrl || p.videoUrl,
-          thumbnail_url: p.displayUrl,
-          post_url: p.url,
-          likes_count: p.likesCount || 0,
-          comments_count: p.commentsCount || 0,
-          shares_count: 0,
-          saves_count: 0,
-          views_count: p.videoViewCount || 0,
-          engagement_rate: calcEngagement(p.likesCount, p.commentsCount, 0, p.followersCount),
-          posted_at: p.timestamp ? new Date(p.timestamp * 1000) : null,
-        }));
+    case 'instagram': {
+      // instagram-profile-scraper returns 1 profile object with latestPosts[] nested inside
+      const profile = items[0] || {};
+      const followers = profile.followersCount || 0;
+      const posts = profile.latestPosts || [];
+      return posts.map(p => ({
+        platform_post_id: p.id || p.shortCode,
+        content_type: (p.type || 'Image').toLowerCase(),
+        caption: p.caption,
+        media_url: p.displayUrl || p.videoUrl,
+        thumbnail_url: p.displayUrl,
+        post_url: p.url || (p.shortCode ? `https://www.instagram.com/p/${p.shortCode}/` : null),
+        likes_count: p.likesCount || 0,
+        comments_count: p.commentsCount || 0,
+        shares_count: 0,
+        saves_count: 0,
+        views_count: p.videoViewCount || p.videoPlayCount || 0,
+        engagement_rate: calcEngagement(p.likesCount, p.commentsCount, 0, followers),
+        posted_at: p.timestamp ? new Date(p.timestamp * 1000) : null,
+      }));
+    }
 
     case 'tiktok':
       return items.map(p => ({
