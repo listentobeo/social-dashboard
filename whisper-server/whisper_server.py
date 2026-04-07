@@ -21,8 +21,8 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-print("Loading Whisper model (small)...")
-model = whisper.load_model("small")
+print("Loading Whisper model (medium)...")
+model = whisper.load_model("medium")
 print("Whisper ready.")
 
 gemini_client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
@@ -69,7 +69,7 @@ def transcribe():
                 return jsonify({'error': 'Download failed — no file found'}), 500
 
             audio_path = os.path.join(tmpdir, files[0])
-            result = model.transcribe(audio_path)
+            result = model.transcribe(audio_path, language='en')
             transcript = result['text'].strip()
 
         if not transcript:

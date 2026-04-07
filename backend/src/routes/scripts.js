@@ -1,10 +1,9 @@
 const router = require('express').Router();
 const pool = require('../db/client');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Anthropic = require('@anthropic-ai/sdk');
 
-function getGemini() {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+function getClaude() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
 // GET posts for an account that have a video URL (transcribable)
@@ -97,8 +96,9 @@ router.post('/generate', async (req, res) => {
       compScripts.map(s => `- ${s.hook_type}: "${s.hook}"\n  Body: ${s.body_structure}`).join('\n\n')
     : '';
 
-  const prompt = `You are a social media scriptwriter for a visual artist and creative entrepreneur in Lagos, Nigeria.
-Write a short-form video script (Instagram Reel or TikTok) for this creator.
+  const prompt = `You are a ghostwriter for Benjamin Odeke — visual artist, portrait painter, creative entrepreneur based in Lagos, Nigeria. He runs Beo Art Studio.
+
+Your job: write a short-form video script (Instagram Reel or TikTok) that sounds EXACTLY like him — not like a marketer, not like a life coach, not generic.
 
 TOPIC: ${topic}
 
@@ -106,31 +106,38 @@ ${myVoiceSection}
 
 ${compSection}
 
-Rules:
-- Match the creator's tone and sentence style exactly
-- Short punchy sentences — no more than 12 words per line
-- If competitor patterns provided, use their hook structure but make it authentic
-- Do NOT write generic advice or filler
+HARD RULES:
+- Match his exact sentence rhythm from the voice profile above — short, direct, personal
+- No generic lines like "Are you struggling with X?" or "Here's what most people don't know"
+- No filler. Every line earns its place.
+- Max 10 words per line
+- Sound like a real person talking to camera, not a script
+- If competitor hook patterns are provided, steal the STRUCTURE not the words
 
-FORMAT OUTPUT EXACTLY LIKE THIS:
+FORMAT — output this exactly, nothing else:
 
 **HOOK (0-3s)**
-[opening line]
+[one punchy opening line]
 
 **BODY**
 [0:04] ...
 [0:15] ...
-[0:30] ...
+[0:25] ...
+[0:35] ...
 
 **CTA**
-[closing line]
+[one closing line — direct ask or strong statement]
 
 **ESTIMATED DURATION:** X seconds`;
 
   try {
-    const model = getGemini();
-    const result = await model.generateContent(prompt);
-    const fullScript = result.response.text();
+    const claude = getClaude();
+    const message = await claude.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const fullScript = message.content[0].text;
 
     // Save generated script
     const { rows: [saved] } = await pool.query(
