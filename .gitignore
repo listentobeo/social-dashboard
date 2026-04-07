@@ -1,0 +1,21 @@
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+
+# Vercel
+.vercel
+
+# Whisper model files
+*.pt
