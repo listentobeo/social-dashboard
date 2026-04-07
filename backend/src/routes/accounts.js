@@ -37,9 +37,12 @@ router.post('/:id/scrape', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM accounts WHERE id=$1', [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'Account not found' });
 
-  // Run in background, return immediately
-  res.json({ message: 'Scrape started' });
-  scrapeAccount(rows[0]).catch(console.error);
+  try {
+    const runId = await scrapeAccount(rows[0]);
+    res.json({ message: 'Scrape started', runId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET account summary (for overview cards)

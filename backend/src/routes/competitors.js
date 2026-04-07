@@ -20,8 +20,8 @@ router.post('/', async (req, res) => {
       [platform, handle.replace('@', '').trim(), notes || null]
     );
 
-    // Auto-trigger first scrape
-    scrapeCompetitor(rows[0]).catch(console.error);
+    // Auto-trigger first scrape (await so Vercel doesn't kill it before Apify run starts)
+    scrapeCompetitor(rows[0]).catch(err => console.error('[AUTO-SCRAPE]', err.message));
 
     res.json(rows[0]);
   } catch (err) {
@@ -65,8 +65,12 @@ router.post('/:id/scrape', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM competitors WHERE id=$1', [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
 
-  res.json({ message: 'Scrape started' });
-  scrapeCompetitor(rows[0]).catch(console.error);
+  try {
+    const runId = await scrapeCompetitor(rows[0]);
+    res.json({ message: 'Scrape started', runId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

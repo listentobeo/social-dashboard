@@ -10,6 +10,7 @@ export default function Overview() {
   const { activeAccount } = useAccounts();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [scraping, setScraping] = useState(false);
 
   useEffect(() => {
     if (!activeAccount?.id) return;
@@ -96,10 +97,21 @@ export default function Overview() {
             <div className="bg-dark-800 border border-dark-600 rounded-2xl p-8 text-center">
               <p className="text-gray-500 mb-3">No posts scraped yet.</p>
               <button
-                onClick={() => api.scrapeAccount(activeAccount.id)}
-                className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-xl text-sm transition-colors"
+                disabled={scraping}
+                onClick={async () => {
+                  setScraping(true);
+                  try {
+                    await api.scrapeAccount(activeAccount.id);
+                    alert('Scrape started! Apify will process it — posts will appear in ~2 min. Refresh the page then.');
+                  } catch (err) {
+                    alert(`Scrape failed: ${err.message}`);
+                  } finally {
+                    setScraping(false);
+                  }
+                }}
+                className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm transition-colors"
               >
-                Scrape Now
+                {scraping ? 'Starting...' : 'Scrape Now'}
               </button>
             </div>
           )}
