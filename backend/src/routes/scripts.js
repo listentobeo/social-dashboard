@@ -47,8 +47,8 @@ router.get('/competitors/:accountId', async (req, res) => {
   if (!account) return res.status(404).json({ error: 'Account not found' });
 
   const { rows } = await pool.query(
-    'SELECT id, handle, platform, followers_count FROM competitors WHERE platform=$1 ORDER BY followers_count DESC',
-    [account.platform]
+    'SELECT id, handle, platform, followers_count FROM competitors WHERE platform=$1 AND profile_id=$2 ORDER BY followers_count DESC',
+    [account.platform, account.profile_id]
   );
   res.json(rows);
 });

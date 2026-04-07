@@ -11,14 +11,14 @@ router.get('/', async (req, res) => {
 
 // POST add account
 router.post('/', async (req, res) => {
-  const { platform, handle } = req.body;
-  if (!platform || !handle) return res.status(400).json({ error: 'platform and handle required' });
+  const { platform, handle, profileId } = req.body;
+  if (!platform || !handle || !profileId) return res.status(400).json({ error: 'platform, handle, and profileId required' });
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO accounts (platform, handle) VALUES ($1, $2)
-       ON CONFLICT (platform, handle) DO UPDATE SET handle=$2 RETURNING *`,
-      [platform, handle.replace('@', '').trim()]
+      `INSERT INTO accounts (platform, handle, profile_id) VALUES ($1, $2, $3)
+       ON CONFLICT (platform, handle) DO UPDATE SET profile_id=$3 RETURNING *`,
+      [platform, handle.replace('@', '').trim(), profileId]
     );
     res.json(rows[0]);
   } catch (err) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccounts } from '../contexts/AccountContext';
+import { useProfiles } from '../contexts/ProfileContext';
 import { api } from '../lib/api';
 import { Plus, Trash2, RefreshCw, Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { PlatformBadge } from '../components/AccountSwitcher';
@@ -7,6 +8,7 @@ import PostCard from '../components/PostCard';
 
 export default function Competitors() {
   const { activeAccount } = useAccounts();
+  const { activeProfile } = useProfiles();
   const [competitors, setCompetitors] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [expandedData, setExpandedData] = useState({});
@@ -34,7 +36,7 @@ export default function Competitors() {
   async function fetchCompetitors() {
     setLoading(true);
     try {
-      const data = await api.getCompetitors();
+      const data = await api.getCompetitors(activeProfile?.id);
       setCompetitors(data);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -78,7 +80,7 @@ export default function Competitors() {
     e.preventDefault();
     setAdding(true);
     try {
-      const result = await api.addCompetitor(form.platform, form.handle, form.notes);
+      const result = await api.addCompetitor(form.platform, form.handle, form.notes, activeProfile?.id);
       setForm(f => ({ ...f, handle: '', notes: '' }));
       setShowAdd(false);
       await fetchCompetitors();

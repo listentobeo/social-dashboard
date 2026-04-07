@@ -2,22 +2,30 @@ const router = require('express').Router();
 const pool = require('../db/client');
 const { scrapeCompetitor } = require('../services/cron');
 
-// GET all competitors
+// GET competitors — filtered by profileId if provided
 router.get('/', async (req, res) => {
+  const { profileId } = req.query;
+  if (profileId) {
+    const { rows } = await pool.query(
+      'SELECT * FROM competitors WHERE profile_id=$1 ORDER BY created_at DESC',
+      [profileId]
+    );
+    return res.json(rows);
+  }
   const { rows } = await pool.query('SELECT * FROM competitors ORDER BY created_at DESC');
   res.json(rows);
 });
 
 // POST add competitor
 router.post('/', async (req, res) => {
-  const { platform, handle, notes } = req.body;
-  if (!platform || !handle) return res.status(400).json({ error: 'platform and handle required' });
+  const { platform, handle, notes, profileId } = req.body;
+  if (!platform || !handle || !profileId) return res.status(400).json({ error: 'platform, handle, and profileId required' });
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO competitors (platform, handle, notes) VALUES ($1, $2, $3)
-       ON CONFLICT (platform, handle) DO UPDATE SET notes=$3 RETURNING *`,
-      [platform, handle.replace('@', '').trim(), notes || null]
+      `INSERT INTO competitors (platform, handle, notes, profile_id) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (platform, handle) DO UPDATE SET notes=$3, profile_id=$4 RETURNING *`,
+      [platform, handle.replace('@', '').trim(), notes || null, profileId]
     );
 
     // Auto-trigger first scrape — await so Vercel doesn't kill before Apify call completes

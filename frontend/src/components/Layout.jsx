@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { BarChart3, TrendingUp, FileText, Users, Sparkles, Mic, Settings, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccounts } from '../contexts/AccountContext';
-import AccountSwitcher from './AccountSwitcher';
+import AccountSwitcher, { ProfileSwitcher } from './AccountSwitcher';
 import { api } from '../lib/api';
 import { useState } from 'react';
 
@@ -45,8 +45,9 @@ export default function Layout({ children }) {
           </div>
         </div>
 
-        {/* Account Switcher */}
-        <div className="p-3 border-b border-dark-600">
+        {/* Profile + Account Switcher */}
+        <div className="p-3 border-b border-dark-600 space-y-1">
+          <ProfileSwitcher />
           <AccountSwitcher />
         </div>
 

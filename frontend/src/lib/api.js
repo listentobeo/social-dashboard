@@ -34,16 +34,21 @@ export const api = {
       body: JSON.stringify({ password }),
     }).then(r => r.json()),
 
+  // Profiles
+  getProfiles: () => request('GET', '/api/profiles'),
+  addProfile: (name) => request('POST', '/api/profiles', { name }),
+  deleteProfile: (id) => request('DELETE', `/api/profiles/${id}`),
+
   // Accounts
   getAccounts: () => request('GET', '/api/accounts'),
-  addAccount: (platform, handle) => request('POST', '/api/accounts', { platform, handle }),
+  addAccount: (platform, handle, profileId) => request('POST', '/api/accounts', { platform, handle, profileId }),
   deleteAccount: (id) => request('DELETE', `/api/accounts/${id}`),
   scrapeAccount: (id) => request('POST', `/api/accounts/${id}/scrape`),
   getAccountSummary: (id) => request('GET', `/api/accounts/${id}/summary`),
 
   // Competitors
-  getCompetitors: () => request('GET', '/api/competitors'),
-  addCompetitor: (platform, handle, notes) => request('POST', '/api/competitors', { platform, handle, notes }),
+  getCompetitors: (profileId) => request('GET', `/api/competitors${profileId ? `?profileId=${profileId}` : ''}`),
+  addCompetitor: (platform, handle, notes, profileId) => request('POST', '/api/competitors', { platform, handle, notes, profileId }),
   updateCompetitor: (id, notes) => request('PATCH', `/api/competitors/${id}`, { notes }),
   deleteCompetitor: (id) => request('DELETE', `/api/competitors/${id}`),
   getCompetitor: (id) => request('GET', `/api/competitors/${id}`),

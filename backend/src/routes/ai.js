@@ -27,8 +27,8 @@ router.post('/analyze/:accountId', async (req, res) => {
   );
 
   const { rows: competitors } = await pool.query(
-    'SELECT * FROM competitors WHERE platform=$1',
-    [account.platform]
+    'SELECT * FROM competitors WHERE platform=$1 AND profile_id=$2',
+    [account.platform, account.profile_id]
   );
 
   if (posts.length < 3) {

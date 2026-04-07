@@ -12,7 +12,7 @@ import os
 import tempfile
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import google.generativeai as genai
+from google import genai
 import json
 from dotenv import load_dotenv
 
@@ -22,12 +22,11 @@ app = Flask(__name__)
 CORS(app)
 
 # Load Whisper model once at startup (change to "small" or "medium" for better accuracy)
-print("Loading Whisper model (base)...")
-model = whisper.load_model("base")
+print("Loading Whisper model (small)...")
+model = whisper.load_model("small")
 print("Whisper ready.")
 
-genai.configure(api_key=os.environ['GEMINI_API_KEY'])
-gemini_model = genai.GenerativeModel('gemini-3.1-flash-lite-preview')
+gemini_client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
 
 def get_db():
@@ -116,8 +115,9 @@ Return ONLY valid JSON (no markdown, no explanation):
   "estimated_duration": "short (under 30s) / medium (30-60s) / long (60s+)"
 }}"""
 
-    result = gemini_model.generate_content(prompt)
+    result = gemini_client.models.generate_content(model='gemini-3.1-flash-lite-preview', contents=prompt)
     text = result.text.strip()
+
 
     # Strip markdown code blocks if Gemini wraps it
     if '```' in text:

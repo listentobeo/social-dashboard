@@ -3,5 +3,5 @@ flask-cors
 openai-whisper
 yt-dlp
 psycopg2-binary
-google-generativeai
+google-genai
 python-dotenv

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProfileProvider } from './contexts/ProfileContext';
 import { AccountProvider } from './contexts/AccountContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/*" element={
             <ProtectedRoute>
+              <ProfileProvider>
               <AccountProvider>
                 <Layout>
                   <Routes>
@@ -38,6 +40,7 @@ export default function App() {
                   </Routes>
                 </Layout>
               </AccountProvider>
+              </ProfileProvider>
             </ProtectedRoute>
           } />
         </Routes>
