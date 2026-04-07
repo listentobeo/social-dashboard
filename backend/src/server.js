@@ -36,6 +36,9 @@ app.post('/cron/scrape', async (req, res) => {
   runAllScrapes().catch(console.error);
 });
 
+// Webhook — no auth (called by Apify)
+app.use('/webhooks', require('./routes/webhooks'));
+
 // All API routes behind auth
 app.use('/api/accounts', auth, require('./routes/accounts'));
 app.use('/api/competitors', auth, require('./routes/competitors'));

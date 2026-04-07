@@ -3,7 +3,6 @@ const axios = require('axios');
 const BASE_URL = 'https://api.apify.com/v2';
 const TOKEN = () => process.env.APIFY_TOKEN;
 
-// Actor IDs per platform
 const ACTORS = {
   instagram: 'apify/instagram-profile-scraper',
   tiktok: 'clockworks/free-tiktok-scraper',
@@ -12,7 +11,6 @@ const ACTORS = {
   x: 'quacker/twitter-scraper',
 };
 
-// Build actor input per platform
 function buildInput(platform, handle) {
   switch (platform) {
     case 'instagram':
@@ -30,27 +28,63 @@ function buildInput(platform, handle) {
   }
 }
 
+// Start actor run and return immediately with runId (no waiting)
+// Apify will POST to our webhook when done
+async function startActorRun(platform, handle, webhookUrl) {
+  const actorId = ACTORS[platform];
+  const input = buildInput(platform, handle);
+
+  const params = new URLSearchParams({ token: TOKEN() });
+
+  // Attach webhook if URL provided
+  const webhooks = webhookUrl ? [
+    {
+      eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED'],
+      requestUrl: webhookUrl,
+      payloadTemplate: JSON.stringify({
+        runId: '{{runId}}',
+        datasetId: '{{defaultDatasetId}}',
+        status: '{{status}}',
+      }),
+    }
+  ] : [];
+
+  const body = { ...input };
+  if (webhooks.length) body.__webhooks = webhooks;
+
+  const runRes = await axios.post(
+    `${BASE_URL}/acts/${encodeURIComponent(actorId)}/runs?${params}`,
+    body
+  );
+
+  return runRes.data.data.id;
+}
+
+// Fetch dataset items by datasetId (called from webhook handler)
+async function fetchDataset(datasetId) {
+  const res = await axios.get(
+    `${BASE_URL}/datasets/${datasetId}/items?token=${TOKEN()}&limit=50`
+  );
+  return res.data;
+}
+
+// Synchronous run — only used for local dev, not Vercel
 async function runActor(platform, handle) {
   const actorId = ACTORS[platform];
   const input = buildInput(platform, handle);
 
-  // Start actor run
   const runRes = await axios.post(
     `${BASE_URL}/acts/${encodeURIComponent(actorId)}/runs?token=${TOKEN()}&waitForFinish=120`,
     input
   );
 
   const { defaultDatasetId, id: runId } = runRes.data.data;
-
-  // Fetch dataset items
   const dataRes = await axios.get(
     `${BASE_URL}/datasets/${defaultDatasetId}/items?token=${TOKEN()}&limit=50`
   );
-
   return { runId, items: dataRes.data };
 }
 
-// Normalize scraped data into common schema
 function normalizeProfile(platform, items) {
   if (!items || items.length === 0) return null;
 
@@ -115,7 +149,7 @@ function normalizeProfile(platform, items) {
   }
 }
 
-function normalizePosts(platform, items, accountIdOrCompetitorId) {
+function normalizePosts(platform, items) {
   if (!items || items.length === 0) return [];
 
   switch (platform) {
@@ -223,4 +257,4 @@ function calcEngagement(likes = 0, comments = 0, shares = 0, followers = null) {
   return parseFloat(((total / followers) * 100).toFixed(3));
 }
 
-module.exports = { runActor, normalizeProfile, normalizePosts };
+module.exports = { startActorRun, fetchDataset, runActor, normalizeProfile, normalizePosts };
