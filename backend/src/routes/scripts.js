@@ -14,7 +14,8 @@ router.get('/posts/:accountId', async (req, res) => {
            p.likes_count, p.comments_count, p.views_count, p.content_type, p.posted_at,
            a.platform, a.handle, 'account' AS type,
            ps.id AS script_id, ps.hook, ps.hook_type, ps.tone,
-           ps.body_structure, ps.cta, ps.key_phrases, ps.analyzed_at
+           ps.body_structure, ps.cta, ps.key_phrases, ps.sections,
+           ps.duration_seconds, ps.content_format, ps.analyzed_at
     FROM posts p
     JOIN accounts a ON p.account_id = a.id
     LEFT JOIN post_scripts ps ON ps.post_id = p.id
@@ -31,7 +32,8 @@ router.get('/competitor-posts/:competitorId', async (req, res) => {
            cp.likes_count, cp.comments_count, cp.views_count, cp.content_type, cp.posted_at,
            c.platform, c.handle, 'competitor' AS type,
            ps.id AS script_id, ps.hook, ps.hook_type, ps.tone,
-           ps.body_structure, ps.cta, ps.key_phrases, ps.analyzed_at
+           ps.body_structure, ps.cta, ps.key_phrases, ps.sections,
+           ps.duration_seconds, ps.content_format, ps.analyzed_at
     FROM competitor_posts cp
     JOIN competitors c ON cp.competitor_id = c.id
     LEFT JOIN post_scripts ps ON ps.competitor_post_id = cp.id

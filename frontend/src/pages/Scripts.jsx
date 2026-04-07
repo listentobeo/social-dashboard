@@ -317,6 +317,15 @@ export default function Scripts() {
                 {/* Expanded transcript / analysis */}
                 {expanded === post.id && post.script_id && (
                   <div className="border-t border-dark-600 p-4 space-y-4">
+                    {/* Duration badge */}
+                    {post.duration_seconds > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-1 rounded-lg font-medium ${post.content_format === 'long' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                          {post.content_format === 'long' ? 'Long-form' : 'Short-form'} · {Math.floor(post.duration_seconds / 60)}:{String(post.duration_seconds % 60).padStart(2, '0')}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {[
                         { label: 'Hook Type', value: post.hook_type },
@@ -330,12 +339,35 @@ export default function Scripts() {
                         </div>
                       ))}
                     </div>
+
                     {post.hook && (
                       <div className="bg-dark-700 rounded-xl p-3">
                         <p className="text-gray-500 text-xs mb-1">Hook</p>
                         <p className="text-white text-sm font-medium">"{post.hook}"</p>
                       </div>
                     )}
+
+                    {/* Long-form sections breakdown */}
+                    {post.content_format === 'long' && post.sections && (() => {
+                      const sections = Array.isArray(post.sections) ? post.sections : JSON.parse(post.sections || '[]');
+                      return sections.length > 0 ? (
+                        <div>
+                          <p className="text-gray-500 text-xs mb-2">Section Breakdown</p>
+                          <div className="space-y-2">
+                            {sections.map((s, i) => (
+                              <div key={i} className="flex gap-3 bg-dark-700 rounded-xl p-3">
+                                <span className="text-accent text-xs font-mono flex-shrink-0 mt-0.5">{s.timestamp}</span>
+                                <div>
+                                  <p className="text-white text-xs font-medium">{s.title}</p>
+                                  <p className="text-gray-400 text-xs mt-0.5">{s.summary}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+
                     {post.key_phrases && (
                       <div className="flex flex-wrap gap-2">
                         {(Array.isArray(post.key_phrases) ? post.key_phrases : JSON.parse(post.key_phrases || '[]')).map((phrase, i) => (
