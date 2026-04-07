@@ -101,14 +101,15 @@ function normalizeProfile(platform, items) {
       };
     }
     case 'tiktok': {
+      // free-tiktok-scraper returns flat dot-notation keys, not nested objects
       const p = items[0];
       return {
-        display_name: p.authorMeta?.name || p.authorMeta?.nickName,
-        profile_picture_url: p.authorMeta?.avatar,
-        followers_count: p.authorMeta?.fans || 0,
-        following_count: p.authorMeta?.following || 0,
-        posts_count: p.authorMeta?.video || 0,
-        bio: p.authorMeta?.signature,
+        display_name: p['authorMeta.name'] || p['authorMeta.nickName'] || p.authorMeta?.name,
+        profile_picture_url: p['authorMeta.avatar'] || p.authorMeta?.avatar,
+        followers_count: p['authorMeta.fans'] || p.authorMeta?.fans || 0,
+        following_count: p['authorMeta.following'] || p.authorMeta?.following || 0,
+        posts_count: p['authorMeta.video'] || p.authorMeta?.video || 0,
+        bio: p['authorMeta.signature'] || p.authorMeta?.signature,
       };
     }
     case 'facebook': {
@@ -176,21 +177,27 @@ function normalizePosts(platform, items) {
     }
 
     case 'tiktok':
-      return items.map(p => ({
-        platform_post_id: p.id,
-        content_type: 'video',
-        caption: p.text,
-        media_url: p.videoMeta?.downloadAddr,
-        thumbnail_url: p.videoMeta?.coverUrl,
-        post_url: p.webVideoUrl,
-        likes_count: p.diggCount || 0,
-        comments_count: p.commentCount || 0,
-        shares_count: p.shareCount || 0,
-        saves_count: p.collectCount || 0,
-        views_count: p.playCount || 0,
-        engagement_rate: calcEngagement(p.diggCount, p.commentCount, p.shareCount, p.authorMeta?.fans),
-        posted_at: p.createTimeISO ? new Date(p.createTimeISO) : null,
-      }));
+      return items
+        .filter(p => p.webVideoUrl || p.id)
+        .map(p => ({
+          // free-tiktok-scraper uses flat dot-notation keys; extract video ID from URL
+          platform_post_id: p.id || p.webVideoUrl?.split('/').pop() || null,
+          content_type: 'video',
+          caption: p.text,
+          media_url: p['videoMeta.downloadAddr'] || p.videoMeta?.downloadAddr || null,
+          thumbnail_url: p['videoMeta.coverUrl'] || p.videoMeta?.coverUrl || null,
+          post_url: p.webVideoUrl,
+          likes_count: p.diggCount || 0,
+          comments_count: p.commentCount || 0,
+          shares_count: p.shareCount || 0,
+          saves_count: p.collectCount || p['collectCount'] || 0,
+          views_count: p.playCount || 0,
+          engagement_rate: calcEngagement(
+            p.diggCount, p.commentCount, p.shareCount,
+            p['authorMeta.fans'] || p.authorMeta?.fans || null
+          ),
+          posted_at: p.createTimeISO ? new Date(p.createTimeISO) : null,
+        }));
 
     case 'facebook':
       return items

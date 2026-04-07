@@ -36,8 +36,10 @@ async function processAccountWebhook(accountId, datasetId) {
   if (!account) return;
 
   const items = await fetchDataset(datasetId);
+  console.log(`[WEBHOOK] ${account.platform}:${account.handle} — dataset has ${items.length} items, keys sample:`, items[0] ? Object.keys(items[0]).slice(0, 8) : 'empty');
   const profile = normalizeProfile(account.platform, items);
   const posts = normalizePosts(account.platform, items);
+  console.log(`[WEBHOOK] Normalized: profile=${!!profile}, posts=${posts.length}`);
 
   if (profile) {
     await pool.query(
