@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Users, TrendingUp, FileText, Zap } from 'lucide-react';
 import { useAccounts } from '../contexts/AccountContext';
 import { api } from '../lib/api';
@@ -11,15 +11,54 @@ export default function Overview() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [scrapeStatus, setScrapeStatus] = useState(null); // 'polling' | 'done' | 'failed'
+  const pollRef = useRef(null);
+
+  const fetchSummary = () => {
+    if (!activeAccount?.id) return;
+    return api.getAccountSummary(activeAccount.id).then(setSummary).catch(console.error);
+  };
 
   useEffect(() => {
     if (!activeAccount?.id) return;
     setLoading(true);
-    api.getAccountSummary(activeAccount.id)
-      .then(setSummary)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    fetchSummary().finally(() => setLoading(false));
   }, [activeAccount?.id]);
+
+  // Poll Apify run status until done, then refresh data
+  const startPolling = (runId, type, id) => {
+    setScrapeStatus('polling');
+    let attempts = 0;
+    const maxAttempts = 20; // 5 minutes at 15s intervals
+
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const result = await api.pollScrapeStatus(runId, type, id);
+        if (result.done) {
+          clearInterval(pollRef.current);
+          if (result.error) {
+            setScrapeStatus('failed');
+          } else {
+            setScrapeStatus('done');
+            await fetchSummary();
+          }
+          setScraping(false);
+          setTimeout(() => setScrapeStatus(null), 4000);
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(pollRef.current);
+        setScraping(false);
+        setScrapeStatus('failed');
+        setTimeout(() => setScrapeStatus(null), 4000);
+      }
+    }, 15000);
+  };
+
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   if (!activeAccount) {
     return (
@@ -95,24 +134,41 @@ export default function Overview() {
 
           {topPosts.length === 0 && (
             <div className="bg-dark-800 border border-dark-600 rounded-2xl p-8 text-center">
-              <p className="text-gray-500 mb-3">No posts scraped yet.</p>
-              <button
-                disabled={scraping}
-                onClick={async () => {
-                  setScraping(true);
-                  try {
-                    await api.scrapeAccount(activeAccount.id);
-                    alert('Scrape started! Apify will process it — posts will appear in ~2 min. Refresh the page then.');
-                  } catch (err) {
-                    alert(`Scrape failed: ${err.message}`);
-                  } finally {
-                    setScraping(false);
-                  }
-                }}
-                className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm transition-colors"
-              >
-                {scraping ? 'Starting...' : 'Scrape Now'}
-              </button>
+              {scrapeStatus === 'polling' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-yellow-400">
+                    <span className="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-ping" />
+                    <span className="text-sm font-medium">Apify is scraping your profile...</span>
+                  </div>
+                  <p className="text-gray-500 text-xs">Checking every 15s. This takes 1–3 min. Hang tight.</p>
+                </div>
+              ) : scrapeStatus === 'done' ? (
+                <p className="text-green-400 text-sm font-medium">Done! Loading your posts...</p>
+              ) : scrapeStatus === 'failed' ? (
+                <p className="text-red-400 text-sm">Scrape failed or timed out. Check Apify dashboard.</p>
+              ) : (
+                <>
+                  <p className="text-gray-500 mb-3">No posts scraped yet.</p>
+                  <button
+                    disabled={scraping}
+                    onClick={async () => {
+                      setScraping(true);
+                      try {
+                        const result = await api.scrapeAccount(activeAccount.id);
+                        if (result.runId) {
+                          startPolling(result.runId, result.type, result.id);
+                        }
+                      } catch (err) {
+                        setScraping(false);
+                        console.error('Scrape error:', err);
+                      }
+                    }}
+                    className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm transition-colors"
+                  >
+                    {scraping ? 'Starting...' : 'Scrape Now'}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </>

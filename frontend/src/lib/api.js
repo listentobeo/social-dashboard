@@ -63,4 +63,8 @@ export const api = {
 
   // Scrape all
   scrapeAll: () => request('POST', '/api/scrape/all'),
+
+  // Poll Apify run status (webhook fallback)
+  pollScrapeStatus: (runId, type, id) =>
+    request('GET', `/api/scrape/status/${runId}?type=${type}&id=${id}`),
 };

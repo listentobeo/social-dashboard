@@ -2,11 +2,12 @@ const pool = require('../db/client');
 const { startActorRun, fetchDataset, normalizeProfile, normalizePosts } = require('./apify');
 
 // Trigger a scrape for an account — fires Apify run, returns immediately
+// Pulls 30 posts so we can show best AND worst performing
 async function scrapeAccount(account) {
   const webhookUrl = `${process.env.BACKEND_URL}/webhooks/apify?type=account&id=${account.id}`;
-  console.log(`[SCRAPE] Starting ${account.platform}:${account.handle}`);
+  console.log(`[SCRAPE] Starting ${account.platform}:${account.handle} — webhook: ${webhookUrl}`);
   try {
-    const runId = await startActorRun(account.platform, account.handle, webhookUrl);
+    const runId = await startActorRun(account.platform, account.handle, webhookUrl, 30);
     console.log(`[SCRAPE] Run started: ${runId}`);
     return runId;
   } catch (err) {
@@ -15,12 +16,12 @@ async function scrapeAccount(account) {
   }
 }
 
-// Trigger a scrape for a competitor
+// Trigger a scrape for a competitor — pull 20, keep top 10 by engagement
 async function scrapeCompetitor(competitor) {
   const webhookUrl = `${process.env.BACKEND_URL}/webhooks/apify?type=competitor&id=${competitor.id}`;
-  console.log(`[SCRAPE] Starting competitor ${competitor.platform}:${competitor.handle}`);
+  console.log(`[SCRAPE] Starting competitor ${competitor.platform}:${competitor.handle} — webhook: ${webhookUrl}`);
   try {
-    const runId = await startActorRun(competitor.platform, competitor.handle, webhookUrl);
+    const runId = await startActorRun(competitor.platform, competitor.handle, webhookUrl, 20);
     console.log(`[SCRAPE] Competitor run started: ${runId}`);
     return runId;
   } catch (err) {
@@ -82,7 +83,11 @@ async function processCompetitorWebhook(competitorId, datasetId) {
 
   const items = await fetchDataset(datasetId);
   const profile = normalizeProfile(competitor.platform, items);
-  const posts = normalizePosts(competitor.platform, items);
+  // Keep only top 10 by engagement rate
+  const allPosts = normalizePosts(competitor.platform, items);
+  const posts = allPosts
+    .sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0))
+    .slice(0, 10);
 
   if (profile) {
     const avgEngagement = posts.length

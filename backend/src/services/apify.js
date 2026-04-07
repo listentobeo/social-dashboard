@@ -11,18 +11,18 @@ const ACTORS = {
   x: 'quacker/twitter-scraper',
 };
 
-function buildInput(platform, handle) {
+function buildInput(platform, handle, limit = 30) {
   switch (platform) {
     case 'instagram':
-      return { usernames: [handle] };
+      return { usernames: [handle], resultsLimit: limit };
     case 'tiktok':
-      return { profiles: [`https://www.tiktok.com/@${handle}`], resultsPerPage: 30 };
+      return { profiles: [`https://www.tiktok.com/@${handle}`], resultsPerPage: limit };
     case 'facebook':
-      return { startUrls: [{ url: `https://www.facebook.com/${handle}` }], maxPosts: 30 };
+      return { startUrls: [{ url: `https://www.facebook.com/${handle}` }], maxPosts: limit };
     case 'youtube':
-      return { startUrls: [{ url: `https://www.youtube.com/@${handle}` }], maxResults: 30 };
+      return { startUrls: [{ url: `https://www.youtube.com/@${handle}` }], maxResults: limit };
     case 'x':
-      return { searchTerms: [`from:${handle}`], maxTweets: 30 };
+      return { searchTerms: [`from:${handle}`], maxTweets: limit };
     default:
       throw new Error(`Unknown platform: ${platform}`);
   }
@@ -30,9 +30,9 @@ function buildInput(platform, handle) {
 
 // Start actor run and return immediately with runId (no waiting)
 // Apify will POST to our webhook when done
-async function startActorRun(platform, handle, webhookUrl) {
+async function startActorRun(platform, handle, webhookUrl, limit = 30) {
   const actorId = ACTORS[platform];
-  const input = buildInput(platform, handle);
+  const input = buildInput(platform, handle, limit);
 
   const params = new URLSearchParams({ token: TOKEN() });
 
@@ -257,4 +257,10 @@ function calcEngagement(likes = 0, comments = 0, shares = 0, followers = null) {
   return parseFloat(((total / followers) * 100).toFixed(3));
 }
 
-module.exports = { startActorRun, fetchDataset, runActor, normalizeProfile, normalizePosts };
+// Check run status — fast, just reads Apify metadata
+async function getRunStatus(runId) {
+  const res = await axios.get(`${BASE_URL}/actor-runs/${runId}?token=${TOKEN()}`);
+  return res.data.data; // { status, defaultDatasetId, ... }
+}
+
+module.exports = { startActorRun, fetchDataset, runActor, getRunStatus, normalizeProfile, normalizePosts };

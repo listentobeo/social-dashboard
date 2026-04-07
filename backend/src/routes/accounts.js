@@ -39,7 +39,7 @@ router.post('/:id/scrape', async (req, res) => {
 
   try {
     const runId = await scrapeAccount(rows[0]);
-    res.json({ message: 'Scrape started', runId });
+    res.json({ message: 'Scrape started', runId, type: 'account', id: req.params.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
