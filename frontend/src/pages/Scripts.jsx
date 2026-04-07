@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAccounts } from '../contexts/AccountContext';
 import { api } from '../lib/api';
-import { Mic, Sparkles, Trash2, ChevronDown, ChevronUp, Copy, Check, Wifi, WifiOff, Download } from 'lucide-react';
+import { Mic, Sparkles, Trash2, ChevronDown, ChevronUp, Copy, Check, Wifi, WifiOff, Download, Play, ExternalLink } from 'lucide-react';
 
 const WHISPER_URL = 'http://localhost:5001';
 
@@ -21,6 +21,7 @@ export default function Scripts() {
   const [latestScript, setLatestScript] = useState(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [watching, setWatching] = useState(null); // postId being previewed
 
   useEffect(() => {
     checkWhisper();
@@ -137,6 +138,20 @@ export default function Scripts() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function getEmbedUrl(post) {
+    const url = post.post_url;
+    if (!url) return null;
+    if (post.platform === 'tiktok') {
+      const match = url.match(/video\/(\d+)/);
+      return match ? `https://www.tiktok.com/embed/v2/${match[1]}` : null;
+    }
+    if (post.platform === 'youtube') {
+      const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+    }
+    return null; // Instagram — open externally
   }
 
   const postsToShow = tab === 'mine' ? myPosts : competitorPosts;
@@ -303,6 +318,27 @@ export default function Scripts() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {post.post_url && (
+                      getEmbedUrl(post) ? (
+                        <button
+                          onClick={() => setWatching(watching === post.id ? null : post.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-dark-700 text-gray-400 hover:text-white transition-colors"
+                        >
+                          <Play size={12} />
+                          {watching === post.id ? 'Hide' : 'Watch'}
+                        </button>
+                      ) : (
+                        <a
+                          href={post.post_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-dark-700 text-gray-400 hover:text-white transition-colors"
+                        >
+                          <ExternalLink size={12} />
+                          Open
+                        </a>
+                      )
+                    )}
                     <button
                       onClick={() => handleTranscribe(post)}
                       disabled={!!transcribing[post.id] || !whisperOnline}
@@ -325,6 +361,19 @@ export default function Scripts() {
                     )}
                   </div>
                 </div>
+
+                {/* Inline video player */}
+                {watching === post.id && getEmbedUrl(post) && (
+                  <div className="border-t border-dark-600 flex justify-center bg-dark-900 p-4">
+                    <iframe
+                      src={getEmbedUrl(post)}
+                      className="rounded-xl"
+                      style={{ width: '100%', maxWidth: 340, height: post.platform === 'youtube' ? 200 : 600, border: 'none' }}
+                      allow="autoplay; fullscreen"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
 
                 {/* Expanded transcript / analysis */}
                 {expanded === post.id && post.script_id && (
