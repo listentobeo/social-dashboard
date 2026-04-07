@@ -207,7 +207,9 @@ function normalizePosts(platform, items) {
           };
         });
 
-    case 'facebook':
+    case 'facebook': {
+      // page follower count is on each post item as pageLikes or from first item
+      const pageLikes = items[0]?.pageLikes || items[0]?.pageFollowers || null;
       return items
         .filter(i => i.postId)
         .map(p => ({
@@ -221,29 +223,39 @@ function normalizePosts(platform, items) {
           comments_count: p.comments || 0,
           shares_count: p.shares || 0,
           saves_count: 0,
-          views_count: 0,
-          engagement_rate: calcEngagement(p.likes, p.comments, p.shares, null),
+          views_count: p.videoViews || 0,
+          engagement_rate: calcEngagement(p.likes, p.comments, p.shares, pageLikes),
           posted_at: safeDate(p.time),
         }));
+    }
 
     case 'youtube':
       return items
         .filter(i => i.type === 'video' || i.videoId)
-        .map(p => ({
-          platform_post_id: p.id || p.videoId,
-          content_type: 'video',
-          caption: p.title,
-          media_url: p.url,
-          thumbnail_url: p.thumbnailUrl,
-          post_url: p.url,
-          likes_count: parseInt(p.likes || '0') || 0,
-          comments_count: parseInt(p.commentsCount || '0') || 0,
-          shares_count: 0,
-          saves_count: 0,
-          views_count: parseInt(p.viewCount || p.views || '0') || 0,
-          engagement_rate: calcEngagement(parseInt(p.likes || '0'), parseInt(p.commentsCount || '0'), 0, null),
-          posted_at: safeDate(p.date),
-        }));
+        .map(p => {
+          const likes = parseInt(p.likes || '0') || 0;
+          const comments = parseInt(p.commentsCount || '0') || 0;
+          const views = parseInt(p.viewCount || p.views || '0') || 0;
+          // YouTube: use views-based engagement since subscriber count not on video items
+          const engagementRate = views > 0
+            ? parseFloat((((likes + comments) / views) * 100).toFixed(3))
+            : 0;
+          return {
+            platform_post_id: p.id || p.videoId,
+            content_type: 'video',
+            caption: p.title,
+            media_url: p.url,
+            thumbnail_url: p.thumbnailUrl,
+            post_url: p.url,
+            likes_count: likes,
+            comments_count: comments,
+            shares_count: 0,
+            saves_count: 0,
+            views_count: views,
+            engagement_rate: engagementRate,
+            posted_at: safeDate(p.date),
+          };
+        });
 
     case 'x':
       return items
