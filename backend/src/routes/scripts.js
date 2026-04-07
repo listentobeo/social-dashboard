@@ -45,7 +45,7 @@ router.get('/competitor-posts/:competitorId', async (req, res) => {
 
 // GET all competitors for an account's platform (for script page selector)
 router.get('/competitors/:accountId', async (req, res) => {
-  const { rows: [account] } = await pool.query('SELECT platform FROM accounts WHERE id=$1', [req.params.accountId]);
+  const { rows: [account] } = await pool.query('SELECT platform, profile_id FROM accounts WHERE id=$1', [req.params.accountId]);
   if (!account) return res.status(404).json({ error: 'Account not found' });
 
   const { rows } = await pool.query(
