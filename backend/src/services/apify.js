@@ -49,8 +49,10 @@ async function startActorRun(platform, handle, webhookUrl, limit = 30) {
     }
   ] : [];
 
+  // free-tiktok-scraper is a free actor that doesn't support webhooks — strip them to avoid 402
+  const webhooksToAttach = platform === 'tiktok' ? [] : webhooks;
   const body = { ...input };
-  if (webhooks.length) body.__webhooks = webhooks;
+  if (webhooksToAttach.length) body.__webhooks = webhooksToAttach;
 
   const runRes = await axios.post(
     `${BASE_URL}/acts/${encodeURIComponent(actorId)}/runs?${params}`,
@@ -172,7 +174,7 @@ function normalizePosts(platform, items) {
         saves_count: 0,
         views_count: p.videoViewCount || p.videoPlayCount || 0,
         engagement_rate: calcEngagement(p.likesCount, p.commentsCount, 0, followers),
-        posted_at: p.timestamp ? new Date(p.timestamp * 1000) : null,
+        posted_at: safeDate(p.timestamp ? p.timestamp * 1000 : null),
       }));
     }
 
@@ -196,7 +198,7 @@ function normalizePosts(platform, items) {
             p.diggCount, p.commentCount, p.shareCount,
             p['authorMeta.fans'] || p.authorMeta?.fans || null
           ),
-          posted_at: p.createTimeISO ? new Date(p.createTimeISO) : null,
+          posted_at: safeDate(p.createTimeISO),
         }));
 
     case 'facebook':
@@ -215,7 +217,7 @@ function normalizePosts(platform, items) {
           saves_count: 0,
           views_count: 0,
           engagement_rate: calcEngagement(p.likes, p.comments, p.shares, null),
-          posted_at: p.time ? new Date(p.time) : null,
+          posted_at: safeDate(p.time),
         }));
 
     case 'youtube':
@@ -234,7 +236,7 @@ function normalizePosts(platform, items) {
           saves_count: 0,
           views_count: parseInt(p.viewCount || p.views || '0') || 0,
           engagement_rate: calcEngagement(parseInt(p.likes || '0'), parseInt(p.commentsCount || '0'), 0, null),
-          posted_at: p.date ? new Date(p.date) : null,
+          posted_at: safeDate(p.date),
         }));
 
     case 'x':
@@ -253,7 +255,7 @@ function normalizePosts(platform, items) {
           saves_count: 0,
           views_count: p.views?.count || 0,
           engagement_rate: calcEngagement(p.favorite_count, p.reply_count, p.retweet_count, p.user?.followersCount),
-          posted_at: p.created_at ? new Date(p.created_at) : null,
+          posted_at: safeDate(p.created_at),
         }));
 
     default:
@@ -265,6 +267,13 @@ function calcEngagement(likes = 0, comments = 0, shares = 0, followers = null) {
   const total = (likes || 0) + (comments || 0) + (shares || 0);
   if (!followers || followers === 0) return 0;
   return parseFloat(((total / followers) * 100).toFixed(3));
+}
+
+// Returns a valid Date or null — prevents "Invalid Date" from crashing pg inserts
+function safeDate(val) {
+  if (val == null) return null;
+  const d = val instanceof Date ? val : new Date(val);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 // Check run status — fast, just reads Apify metadata
