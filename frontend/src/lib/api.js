@@ -67,4 +67,13 @@ export const api = {
   // Poll Apify run status (webhook fallback)
   pollScrapeStatus: (runId, type, id) =>
     request('GET', `/api/scrape/status/${runId}?type=${type}&id=${id}`),
+
+  // Scripts
+  getScriptPosts: (accountId) => request('GET', `/api/scripts/posts/${accountId}`),
+  getCompetitorScriptPosts: (competitorId) => request('GET', `/api/scripts/competitor-posts/${competitorId}`),
+  getScriptCompetitors: (accountId) => request('GET', `/api/scripts/competitors/${accountId}`),
+  generateScript: (accountId, topic, competitorId) =>
+    request('POST', '/api/scripts/generate', { accountId, topic, competitorId }),
+  getGeneratedScripts: (accountId) => request('GET', `/api/scripts/generated/${accountId}`),
+  deleteGeneratedScript: (id) => request('DELETE', `/api/scripts/generated/${id}`),
 };

@@ -8,6 +8,7 @@ import Growth from './pages/Growth';
 import Content from './pages/Content';
 import Competitors from './pages/Competitors';
 import AIInsights from './pages/AIInsights';
+import Scripts from './pages/Scripts';
 import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }) {
@@ -32,6 +33,7 @@ export default function App() {
                     <Route path="/content" element={<Content />} />
                     <Route path="/competitors" element={<Competitors />} />
                     <Route path="/ai" element={<AIInsights />} />
+                    <Route path="/scripts" element={<Scripts />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>

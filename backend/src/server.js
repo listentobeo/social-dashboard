@@ -45,6 +45,7 @@ app.use('/api/competitors', auth, require('./routes/competitors'));
 app.use('/api/analytics', auth, require('./routes/analytics'));
 app.use('/api/ai', auth, require('./routes/ai'));
 app.use('/api/scrape', auth, require('./routes/scrape'));
+app.use('/api/scripts', auth, require('./routes/scripts'));
 
 app.use((err, req, res, next) => {
   console.error(err);

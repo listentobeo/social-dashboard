@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { BarChart3, TrendingUp, FileText, Users, Sparkles, Settings, LogOut, RefreshCw } from 'lucide-react';
+import { BarChart3, TrendingUp, FileText, Users, Sparkles, Mic, Settings, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccounts } from '../contexts/AccountContext';
 import AccountSwitcher from './AccountSwitcher';
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/content', icon: FileText, label: 'Content' },
   { to: '/competitors', icon: Users, label: 'Competitors' },
   { to: '/ai', icon: Sparkles, label: 'AI Insights' },
+  { to: '/scripts', icon: Mic, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
