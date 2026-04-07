@@ -9,7 +9,14 @@ export default function PostCard({ post, rank }) {
 
       {post.thumbnail_url && (
         <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-dark-600">
-          <img src={post.thumbnail_url} alt="" className="w-full h-full object-cover" />
+          <img
+            src={post.thumbnail_url}
+            alt=""
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={e => { e.currentTarget.style.display = 'none'; }}
+          />
         </div>
       )}
 
